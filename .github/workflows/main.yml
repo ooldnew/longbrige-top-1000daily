@@ -1,0 +1,46 @@
+name: 下载美股每日前1000只
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install "longbridge==0.2.77" pandas tqdm
+
+      - name: 运行 Step1 生成每日名单
+        env:
+          LP_APP_KEY: ${{ secrets.LP_APP_KEY }}
+          LP_APP_SECRET: ${{ secrets.LP_APP_SECRET }}
+          LP_ACCESS_TOKEN: ${{ secrets.LP_ACCESS_TOKEN }}
+        run: python step1_build_top1000_daily.py
+
+      - name: 运行 Step2 下载行情
+        env:
+          LP_APP_KEY: ${{ secrets.LP_APP_KEY }}
+          LP_APP_SECRET: ${{ secrets.LP_APP_SECRET }}
+          LP_ACCESS_TOKEN: ${{ secrets.LP_ACCESS_TOKEN }}
+        run: python step2_download_ohlcv_daily.py
+
+      - name: 打包行情数据
+        run: tar -czvf daily_ohlcv_data.tar.gz us_daily_top1000_ohlcv/
+
+      - name: 上传结果文件 (供下载)
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-data-result
+          path: |
+            top1000_daily.csv
+            daily_ohlcv_data.tar.gz
